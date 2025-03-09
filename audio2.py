@@ -2,10 +2,16 @@ import whisper
 
 # Caminho do arquivo de áudio
 audio_path = r"C:\\Users\\Carlos\\OneDrive\\Voz 041.m4a"
-wav_path = r"C:\\Users\\Carlos\\OneDrive\\Voz_041.wav"
 
-model = whisper.load_model("base")
+# Carregar o modelo
+model = whisper.load_model("base")  # Você pode testar "small", "medium" ou "large" para mais precisão
+
+# Transcrever o áudio
 result = model.transcribe(audio_path)
-# print(result["text"])
-with open(r"C:\\Users\\Carlos\\OneDrive\\transcricao.txt", "w", encoding="utf-8") as f:
-    f.write(result)
+
+# Salvar a transcrição em um arquivo
+txt_path = r"C:\\Users\\Carlos\\OneDrive\\transcricao.txt"
+with open(txt_path, "w", encoding="utf-8") as f:
+    f.write(result["text"])  # Agora estamos acessando apenas o texto
+
+print(f"Transcrição salva em: {txt_path}")
