@@ -1,147 +1,130 @@
 import sched
 import time
-import matplotlib.pyplot as plt
-import numpy as np
+import json
+import subprocess
 import pandas as pd
-# import pyspeedtest
-import speedtest
+import numpy as np
+import matplotlib.pyplot as plt
+import os
 
-# s = pyspeedtest.SpeedTest()
-st = speedtest.Speedtest()
-scheduler = sched.scheduler()
-st.get_best_server()
+# Inicializa o agendador
+task_scheduler = sched.scheduler()
 
-__author__ = "Nathan Souza"
-__copyright__ = "Copyright 2021, Monitoring internet speeds project"
-
-# inicializando a lista que ira armazenar os registros de dia/hora/mes/ano
+# Listas para armazenar os dados coletados
 datetime = []
-
-# inicializa as lista/variaveis que irão armazernar as velocidades medidas
 download = []
 upload = []
 ping = []
-excel_speedtest = pd.DataFrame()
+jitter = []
+packet_loss = []
+low_latency = []
+high_latency = []
+result_urls = []
+
+# Interface
+print('------------------------------------------------')
+print('       Teste - Velocidade Internet Ookla        ')
+print('------------------------------------------------')
+print('Para interromper o programa, pressione Crtl+C.')
 
 
-# Interface do programa
-def print_header():
-    """Exibe o cabeçalho da aplicação"""
-    print('------------------------------------------------')
-    print('           Teste - Velocidade Internet          ')
-    print('------------------------------------------------')
-    
-
-print(f'Author:{__author__}\n{__copyright__}\n')
-print_header()
-print('Para interromper o programa, pressione Crtl+C.\n')    
-
-
-def delay(): 
-    ok = False 
-    delay_time = 0 
+def delay():
     while True:
-        delay_time = input('Digite o intervalo em segundos entre cada teste de velocidade de internet:')
+        delay_time = input('Digite o intervalo em segundos entre cada teste de velocidade de internet: ')
         if delay_time.isnumeric():
-            delay_time = int(delay_time)
-            ok = True
-        else: 
-            print('Digite apenas números!\n')
-        if ok:
-                break
-    return delay_time    
-
+            return int(delay_time)
+        print('Digite apenas números!')
 
 delay_time = delay()
 
 
-def test_internet_speed():
-    print('\nTestando a velocidade...\n')
-    # calcula velocidades da internet
-    aux_download = float('{:.2f}'.format(st.download() / (10 ** 6)))
-    aux_upload = float('{:.2f}'.format(st.upload() / (10 ** 6)))
-    aux_ping = float('{:.2f}'.format(st.results.ping))
-    # Registra os horarios e dia da medição das velocidades de rede
-    aux_datetime = time.ctime()
-    # armazena numa lista
-    download.append(aux_download)
-    upload.append(aux_upload)
-    ping.append(aux_ping)
-    datetime.append(aux_datetime)
-    # roda o comando de sched
-    scheduler.enter(delay=delay_time, priority=0, action=test_internet_speed)
+def run_speedtest():
+    print('\nExecutando Speedtest...')
+    try:
+#        result = subprocess.run(
+#            ["ookla-speedtest-1.2.0-win64/speedtest.exe", "--format=json"],
+#            capture_output=True, text=True, check=True
+#        )
+        result = subprocess.run(
+            [r"c:\Users\Carlos\Downloads\ookla-speedtest-1.2.0-win64\speedtest.exe", "--format=json"],
+            capture_output=True, text=True, check=True
+        )
+
+        data = json.loads(result.stdout)
+        
+        aux_datetime = time.ctime()
+        aux_download = data["download"]["bandwidth"] / 125000
+        aux_upload = data["upload"]["bandwidth"] / 125000
+        aux_ping = data["ping"]["latency"]
+        aux_jitter = data["ping"]["jitter"]
+        aux_low_latency = data["ping"].get("low", 0)
+        aux_high_latency = data["ping"].get("high", 0)
+        aux_packet_loss = data.get("packetLoss", 0)
+        aux_result_url = data["result"]["url"]
+        
+        datetime.append(aux_datetime)
+        download.append(aux_download)
+        upload.append(aux_upload)
+        ping.append(aux_ping)
+        jitter.append(aux_jitter)
+        low_latency.append(aux_low_latency)
+        high_latency.append(aux_high_latency)
+        packet_loss.append(aux_packet_loss)
+        result_urls.append(aux_result_url)
+
+        print(f"Latência: {aux_ping:.2f} ms (Jitter: {aux_jitter:.2f} ms)")
+        print(f"Download: {aux_download:.2f} Mbps")
+        print(f"Upload: {aux_upload:.2f} Mbps")
+        print(f"Baixa Latência: {aux_low_latency:.2f} ms | Alta Latência: {aux_high_latency:.2f} ms")
+        print(f"Perda de Pacotes: {aux_packet_loss}%")
+        print(f"Resultado Online: {aux_result_url}\n")
+    
+    except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
+        print("Erro ao executar o Speedtest:", e)
+
+    task_scheduler.enter(delay=delay_time, priority=0, action=run_speedtest)
 
 
-def df_speedtest():
-    # Cria o dataframe com os dados de velocidades de rede registradas pelo programa
-    data_speeds = {'Download': download, 'Upload': upload, 'Ping': ping}
-    data_speeds = pd.DataFrame(data_speeds, columns=['Download', 'Upload', 'Ping'])
-    # cria o dataframe de horarios de realizacao dos testes de velocidade
-    date_time = {'Datetime': datetime, }
-    df_date_time = pd.DataFrame(date_time, columns=['Datetime'])
-    # Junta os dois dataframe
-    dados_speedtest = pd.concat([df_date_time, data_speeds], axis=1, join='inner')
-    print(dados_speedtest)
-    print(f'\n O próximo teste será realizado em {delay_time} segundos...\n')
-    scheduler.enter(delay=delay_time, priority=1, action=df_speedtest)
+def save_results():
+    df = pd.DataFrame({
+        "Datetime": datetime,
+        "Download (Mbps)": download,
+        "Upload (Mbps)": upload,
+        "Ping (ms)": ping,
+        "Jitter (ms)": jitter,
+        "Low Latency (ms)": low_latency,
+        "High Latency (ms)": high_latency,
+        "Packet Loss (%)": packet_loss,
+        "Result URL": result_urls
+    })
+    df.to_csv("speedtest_results.csv", index=False)
+    print("Resultados salvos em speedtest_results.csv")
 
 
-def save_dataframe():
-    global excel_speedtest
-    # Cria o dataframe com os dados de velocidades de rede registradas pelo programa
-    data_speeds = {'Download': download, 'Upload': upload, 'Ping': ping}
-    data_speeds = pd.DataFrame(data_speeds, columns=['Download', 'Upload', 'Ping'])
-    # cria o dataframe de horarios de realizacao dos testes de velocidade
-    date_time = {'Datetime': datetime, }
-    df_date_time = pd.DataFrame(date_time, columns=['Datetime'])
-    # Junta os dois dataframe
-    excel_speedtest = pd.concat([df_date_time, data_speeds], axis=1, join='inner')
-    excel_speedtest.to_csv("dados_Speedtest.csv")
-
-
-def internet_graphs():
-    mean_download = np.mean(download)
-    mean_upload = np.mean(upload)
-    mean_ping = np.mean(ping)
+def plot_results():
     plt.style.use("ggplot")
-    x_pi = len(ping)
-    # array com amostras das quantidades de testes de velocidade de rede realizados
-    tests = np.linspace(start=0, stop=x_pi, num=x_pi)
-    # criando as figuras
-    fig1, ax1 = plt.subplots(figsize=(10, 5))
-    fig2, ax2 = plt.subplots(figsize=(10, 5))
-    fig3, ax3 = plt.subplots(figsize=(10, 5))
-    # Plotando os graficos
-    ax1.plot(tests, download, color='r', label='Download Speed. Média:{:.2f}'.format(mean_download))
-    ax1.set(xlabel="Testes", ylabel="Velocidade de Download em Mb/s")
-    ax1.legend(loc='best')
-    ax2.plot(tests, upload, color='b', label='Upload Speed. Média:{:.2f}'.format(mean_upload))
-    ax2.set(xlabel="Testes", ylabel="Velocidade de Upload em Mb/s")
-    ax2.legend(loc='best')
-    ax3.plot(tests, ping, color='m', label='Ping (ms). Média:{:.2f}'.format(mean_ping))
-    ax3.set(xlabel="Testes", ylabel="Ping (ms)")
-    ax3.legend(loc='best')
-    fig1.savefig('Download')
-    fig2.savefig('Upload')
-    fig3.savefig('Ping')
+    x = range(len(datetime))
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.plot(x, download, label='Download (Mbps)', color='r')
+    ax.plot(x, upload, label='Upload (Mbps)', color='b')
+    ax.plot(x, ping, label='Ping (ms)', color='g')
+    ax.plot(x, jitter, label='Jitter (ms)', color='purple')
+    ax.set_xlabel("Testes")
+    ax.set_ylabel("Valores")
+    ax.legend()
+    plt.title("Evolução da Conexão de Internet")
+    import os
+    print("Salvando gráfico em:", os.getcwd())  # Exibe o diretório atual
+    plt.savefig("internet_speed_graph.png")
     plt.show()
-    print('Gerando gráficos...\n')
-
-
-def provedor_internet():
-    info = st.config
-    print('\nIP:', info['client']['ip'])
-    print('Provedor:', info['client']['isp'])
-    print('País:', info['client']['country'])                            
-
-provedor_internet()
-test_internet_speed()
-df_speedtest()
+    print("Gráfico salvo como internet_speed_graph.png")
 
 
 try:
-    scheduler.run(blocking=True)
+    run_speedtest()
+    task_scheduler.run(blocking=True)
 except KeyboardInterrupt:
-    save_dataframe()
-    internet_graphs()
-    print('Programa finalizado!')
+    save_results()
+    plot_results()
+    print("Programa finalizado!")
