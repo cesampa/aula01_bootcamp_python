@@ -21,6 +21,9 @@ low_latency = []
 high_latency = []
 result_urls = []
 
+# Nome do arquivo CSV
+CSV_FILE = "speedtest_results.csv"
+
 # Interface
 print('------------------------------------------------')
 print('       Teste - Velocidade Internet Ookla        ')
@@ -41,15 +44,10 @@ delay_time = delay()
 def run_speedtest():
     print('\nExecutando Speedtest...')
     try:
-#        result = subprocess.run(
-#            ["ookla-speedtest-1.2.0-win64/speedtest.exe", "--format=json"],
-#            capture_output=True, text=True, check=True
-#        )
         result = subprocess.run(
-            [r"c:\Users\Carlos\Downloads\ookla-speedtest-1.2.0-win64\speedtest.exe", "--format=json"],
+            [r"c:\\Users\\Carlos\\Downloads\\ookla-speedtest-1.2.0-win64\\speedtest.exe", "--format=json"],
             capture_output=True, text=True, check=True
         )
-
         data = json.loads(result.stdout)
         
         aux_datetime = time.ctime()
@@ -78,6 +76,8 @@ def run_speedtest():
         print(f"Baixa Latência: {aux_low_latency:.2f} ms | Alta Latência: {aux_high_latency:.2f} ms")
         print(f"Perda de Pacotes: {aux_packet_loss}%")
         print(f"Resultado Online: {aux_result_url}\n")
+
+        save_results()
     
     except (subprocess.CalledProcessError, json.JSONDecodeError) as e:
         print("Erro ao executar o Speedtest:", e)
@@ -86,7 +86,7 @@ def run_speedtest():
 
 
 def save_results():
-    df = pd.DataFrame({
+    new_data = pd.DataFrame({
         "Datetime": datetime,
         "Download (Mbps)": download,
         "Upload (Mbps)": upload,
@@ -97,7 +97,12 @@ def save_results():
         "Packet Loss (%)": packet_loss,
         "Result URL": result_urls
     })
-    df.to_csv("speedtest_results.csv", index=False)
+    
+    if os.path.exists(CSV_FILE):
+        new_data.to_csv(CSV_FILE, mode='a', header=False, index=False)
+    else:
+        new_data.to_csv(CSV_FILE, mode='w', header=True, index=False)
+    
     print("Resultados salvos em speedtest_results.csv")
 
 
@@ -114,8 +119,6 @@ def plot_results():
     ax.set_ylabel("Valores")
     ax.legend()
     plt.title("Evolução da Conexão de Internet")
-    import os
-    print("Salvando gráfico em:", os.getcwd())  # Exibe o diretório atual
     plt.savefig("internet_speed_graph.png")
     plt.show()
     print("Gráfico salvo como internet_speed_graph.png")
