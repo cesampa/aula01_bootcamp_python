@@ -120,7 +120,13 @@ def plot_results():
     ax.legend()
     plt.title("Evolução da Conexão de Internet")
     plt.savefig("internet_speed_graph.png")
-    plt.show()
+    
+    try:
+        plt.show()  # Exibe o gráfico
+    except KeyboardInterrupt:
+        plt.close()  # Fecha a janela do gráfico se houver interrupção
+        print("\nGráfico fechado pelo usuário.")
+    
     print("Gráfico salvo como internet_speed_graph.png")
 
 
