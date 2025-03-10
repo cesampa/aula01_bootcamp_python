@@ -49,6 +49,11 @@ def run_speedtest():
             capture_output=True, text=True, check=True
         )
         data = json.loads(result.stdout)
+        # Verifique se a chave "result" e "url" existem
+        aux_result_url = data.get("result", {}).get("url", "N/A")  # Usa "N/A" se não existir
+        
+        # Atualize as demais variáveis com verificações similares
+        aux_packet_loss = data.get("packetLoss", 0)  # Exemplo para packetLoss
         
         aux_datetime = time.ctime()
         aux_download = data["download"]["bandwidth"] / 125000
@@ -57,8 +62,8 @@ def run_speedtest():
         aux_jitter = data["ping"]["jitter"]
         aux_low_latency = data["ping"].get("low", 0)
         aux_high_latency = data["ping"].get("high", 0)
-        aux_packet_loss = data.get("packetLoss", 0)
-        aux_result_url = data["result"]["url"]
+        # aux_packet_loss = data.get("packetLoss", 0)
+        # aux_result_url = data["result"]["url"]
         
         datetime.append(aux_datetime)
         download.append(aux_download)
